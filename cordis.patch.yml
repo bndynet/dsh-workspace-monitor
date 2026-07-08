@@ -1,0 +1,3 @@
+- insert:
+    - id: workspace-monitor
+      name: '@bndynet/dsh-workspace-monitor'
