@@ -32,11 +32,11 @@ npm ci
 npm pack
 ```
 
-`npm pack` 自动构建并运行测试，生成 `bndynet-dsh-workspace-monitor-0.3.2.tgz`。单独检查使用 `npm run check`；安装端无需构建。
+`npm pack` 自动构建并运行测试，生成 `bndynet-dsh-workspace-monitor-0.2.0.tgz`。单独检查使用 `npm run check`；安装端无需构建。
 
 ## 发布
 
-包名为 **`@bndynet/dsh-workspace-monitor`**，**尚未发布到 npm**。发布后可在 **Plugins → Add plugin** 输入 `@bndynet/dsh-workspace-monitor@0.3.2` 在线安装；当前使用本地 `.tgz`。
+包名为 **`@bndynet/dsh-workspace-monitor`**，**尚未发布到 npm**。发布后可在 **Plugins → Add plugin** 输入 `@bndynet/dsh-workspace-monitor@0.2.0` 在线安装；当前使用本地 `.tgz`。
 
 流程：**打包测试 → DSH 安装验收 → 发布同一安装包到 `next` → 线上验收 → 设置 `latest`**。权限、认证和具体命令见[发布指南](docs/PUBLISHING.md)。
 
