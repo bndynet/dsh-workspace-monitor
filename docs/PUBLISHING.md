@@ -4,14 +4,14 @@
 
 ## 当前状态
 
-本项目使用 **`@bndynet/dsh-workspace-monitor`**，当前版本 **`0.2.0`**，**尚未发布到 npm**。本次仅更新包名与文档，没有执行登录或公开发布。
+本项目使用 **`@bndynet/dsh-workspace-monitor`**，当前版本 **`0.2.1`**，**尚未发布到 npm**。本次仅更新包名与文档，没有执行登录或公开发布。
 
 旧的 unscoped 名称 `dsh-workspace-monitor` 已在公共 npm 存在，本项目现在采用 `@bndynet` scope。名称已确定，无需再改名；发布者仍须确认账号拥有该 scope 的创建及发布权限。
 
 | 项目 | 当前结论 |
 | --- | --- |
 | 构建与分发 | 正常 `npm pack` 自动构建并运行测试；安装包包含预编译 Host / Web、bundle patch、说明与 MIT 许可证，安装端无需构建 |
-| 安装包 | `bndynet-dsh-workspace-monitor-0.2.0.tgz`；发布前须验收这份 scoped 安装包，不能沿用旧包的验收结果 |
+| 安装包 | `bndynet-dsh-workspace-monitor-0.2.1.tgz`；发布前须验收这份 scoped 安装包，不能沿用旧包的验收结果 |
 | npm 账号 | 此前公共 registry 的 `npm whoami` 返回 `ENEEDAUTH`；尚未确认发布账号及 scope 权限，发布前须重新核对 |
 | 支持范围 | 仅声明 DSH **0.2.2-rc.1 Web UI**；macOS 已做界面验收，Linux 已做容器采集和脚本管理测试；Windows 运行/停止不可用 |
 | 项目元数据 | 尚无 `author`、`repository`、`homepage`、`bugs`；建议按真实信息补齐，勿填写不存在的链接 |
@@ -40,14 +40,14 @@ npm owner ls @bndynet/dsh-workspace-monitor --registry=https://registry.npmjs.or
 
 ## 2. 构建并制作安装包
 
-首次发布可保留尚未使用的 `0.2.0`。以后修改代码并发布时须使用新版本，例如 `npm version patch --no-git-tag-version` 同时更新两个 package 文件；不能覆盖已经发布过的同名同版本。
+首次发布可保留尚未使用的 `0.2.1`。以后修改代码并发布时须使用新版本，例如 `npm version patch --no-git-tag-version` 同时更新两个 package 文件；不能覆盖已经发布过的同名同版本。
 
 在项目根目录执行：
 
 ```sh
 npm ci
 npm pack
-tar -tzf ./bndynet-dsh-workspace-monitor-0.2.0.tgz
+tar -tzf ./bndynet-dsh-workspace-monitor-0.2.1.tgz
 ```
 
 正常 `npm pack` 会执行 `prepack → npm run check → build + test`；任一步失败都不能继续。它只在本地生成安装包，不上传 npm。版本升级后同步调整本文命令中的版本与安装包名。详见 [npm pack](https://docs.npmjs.com/cli/v11/commands/npm-pack/)。
@@ -58,7 +58,7 @@ tar -tzf ./bndynet-dsh-workspace-monitor-0.2.0.tgz
 
 ## 3. 验收将要发布的同一份安装包
 
-用独立的 `DSH_HOME` 或测试机器，通过 **Plugins → Add plugin → 安装包绝对路径 → Enable now** 安装 `bndynet-dsh-workspace-monitor-0.2.0.tgz`。路径属于运行 DSH 的机器。
+用独立的 `DSH_HOME` 或测试机器，通过 **Plugins → Add plugin → 安装包绝对路径 → Enable now** 安装 `bndynet-dsh-workspace-monitor-0.2.1.tgz`。路径属于运行 DSH 的机器。
 
 - 悬停 Workspace 名称，检查精简列表、端口、脚本展开及运行/停止；Session 行继续使用自身提示。
 - 验证根项目和子项目脚本启动、正常完成、失败退出码和日志，以及重复启动的处理。
@@ -73,8 +73,8 @@ tar -tzf ./bndynet-dsh-workspace-monitor-0.2.0.tgz
 
 ```sh
 RELEASE_NAME='@bndynet/dsh-workspace-monitor'
-RELEASE_VERSION='0.2.0'
-RELEASE_TARBALL='./bndynet-dsh-workspace-monitor-0.2.0.tgz'
+RELEASE_VERSION='0.2.1'
+RELEASE_TARBALL='./bndynet-dsh-workspace-monitor-0.2.1.tgz'
 
 # 预演不验证包名权限
 npm publish "$RELEASE_TARBALL" --dry-run --access public --tag next --registry=https://registry.npmjs.org
@@ -89,10 +89,10 @@ npm view "$RELEASE_NAME" dist-tags --registry=https://registry.npmjs.org
 
 `next` 是分发标签，上面的命令不会主动设为 `latest`；它不限制访问权限，也不表示 DSH 市场会隐藏该包。兼容范围仍由 `engines.dsh` 声明。
 
-发布后，在全新 DSH 测试配置的 **Plugins → Add plugin** 输入 **`@bndynet/dsh-workspace-monitor@0.2.0`**，验证在线下载、启用和运行。确认通过后再将该版本设为默认：
+发布后，在全新 DSH 测试配置的 **Plugins → Add plugin** 输入 **`@bndynet/dsh-workspace-monitor@0.2.1`**，验证在线下载、启用和运行。确认通过后再将该版本设为默认：
 
 ```sh
-npm dist-tag add @bndynet/dsh-workspace-monitor@0.2.0 latest --registry=https://registry.npmjs.org
+npm dist-tag add @bndynet/dsh-workspace-monitor@0.2.1 latest --registry=https://registry.npmjs.org
 ```
 
 发布与版本不可复用的规则见 [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/)。

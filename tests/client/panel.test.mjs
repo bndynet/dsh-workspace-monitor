@@ -108,7 +108,7 @@ test('workspace preview has loading, empty and retry states without rendering se
   assert.doesNotMatch(failed, /internal detail/);
 });
 
-test('compact preview offers one Stop per active run before and after OS discovery while retaining other scripts and failures', () => {
+test('compact preview offers one Stop per active run but omits run history and scan warnings', () => {
   const active = { id: 'run-dev', runId: 'run-dev', commandId: 'root:dev', label: 'npm run dev', command: 'npm run dev', status: 'running', startedAt: 2000 };
   const failed = { id: 'run-broken', runId: 'run-broken', commandId: 'root:broken', label: 'npm run broken', command: 'npm run broken', status: 'failed', exitCode: 19, startedAt: 1000 };
   const execution = {
@@ -122,7 +122,7 @@ test('compact preview offers one Stop per active run before and after OS discove
     manager: { run() {}, stop() {}, commands() {} },
   };
   const render = tasks => renderToStaticMarkup(React.createElement(WorkspaceHoverContent, {
-    state: { target: { title: 'Demo', path: '/project' }, status: 'ready', snapshot: { tasks, runs: [active, failed], warnings: [] } },
+    state: { target: { title: 'Demo', path: '/project' }, status: 'ready', snapshot: { tasks, runs: [active, failed], warnings: ['Some process details could not be read.'] } },
     execution, language: 'en',
   }));
   const scanned = render([{ id: 'task-dev', runId: 'run-dev', pid: 123, command: 'node /project/server.mjs', canStop: true, ports: [{ protocol: 'tcp', address: '127.0.0.1', port: 5173 }] }]);
@@ -130,7 +130,8 @@ test('compact preview offers one Stop per active run before and after OS discove
   for (const html of [scanned, pending]) {
     assert.equal((html.match(/data-dwm-stop=/g) || []).length, 1, 'an active run has exactly one Stop control');
     assert.match(html, /aria-label="Run command: check"/, 'other runnable scripts remain available');
-    assert.match(html, /Failed · Exit 19/, 'failed history keeps its exit result');
+    assert.doesNotMatch(html, /Failed · Exit 19/, 'run history stays out of the hover preview');
+    assert.doesNotMatch(html, /Some process details/, 'scan warnings stay out of the hover preview');
   }
   assert.match(scanned, /5173/);
   assert.doesNotMatch(scanned, /data-dwm-command-id="root:dev"/, 'a scanned run uses its task row instead of a duplicate catalog row');

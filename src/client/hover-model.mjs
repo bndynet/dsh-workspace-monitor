@@ -57,6 +57,33 @@ export function placeWorkspaceHover(rect, viewport, measuredHeight = 240) {
   return { left, top, width, maxHeight, bridge };
 }
 
+/**
+ * Pointer presence owns the preview lifetime. A Run/Stop click disables its own
+ * button, which blurs it and emits focusout; that must not close a preview the
+ * pointer is still inside. Returns 'keep', 'leave', or null when unrelated.
+ */
+export function createHoverDismissal(inRegion) {
+  let pointerInside = false;
+  return {
+    pointerEnter() { pointerInside = true; },
+    pointerExit() { pointerInside = false; },
+    pointerOut(target, related) {
+      if (!inRegion(target)) return null;
+      if (inRegion(related)) { pointerInside = true; return 'keep'; }
+      pointerInside = false;
+      return 'leave';
+    },
+    focusOut(target, related) {
+      if (!inRegion(target)) return null;
+      if (inRegion(related) || pointerInside) return 'keep';
+      // A disabled control and a move to browser chrome both blur with no
+      // relatedTarget; without pointer evidence, leave any close timer alone.
+      return related ? 'leave' : null;
+    },
+    get pointerInside() { return pointerInside; },
+  };
+}
+
 /** A small cancellable, non-polling state machine independent of React and the DOM. */
 export function createWorkspaceHover({ scan, onChange, setTimer = setTimeout, clearTimer = clearTimeout, openDelay = 350, closeDelay = 180 }) {
   let current = null;

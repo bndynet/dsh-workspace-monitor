@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compactWorkspaceCommand, createWorkspaceHover, isNativeWorkspaceHover, placeWorkspaceHover, suppressNativeWorkspaceHover, workspaceTarget, WORKSPACE_LIST_SELECTOR, WORKSPACE_ROW_SELECTOR } from '../../src/client/hover-model.mjs';
+import { compactWorkspaceCommand, createHoverDismissal, createWorkspaceHover, isNativeWorkspaceHover, placeWorkspaceHover, suppressNativeWorkspaceHover, workspaceTarget, WORKSPACE_LIST_SELECTOR, WORKSPACE_ROW_SELECTOR } from '../../src/client/hover-model.mjs';
 
 function clock() {
   let now = 0;
@@ -67,6 +67,26 @@ test('switching Workspace cancels the old request and never reveals its late res
   assert.equal(hover.getState().snapshot.workspacePath, '/project/b');
   assert.equal(changes.some(state => state?.status === 'ready' && state.target.workspaceId === 'a'), false);
   hover.dispose();
+});
+
+test('a Run/Stop click that blurs its disabled button never dismisses the preview', () => {
+  const popover = { kind: 'popover' };
+  const outside = { kind: 'outside' };
+  const boundary = createHoverDismissal(node => node === popover);
+  boundary.pointerEnter();
+  assert.equal(boundary.pointerInside, true);
+  assert.equal(boundary.focusOut(popover, null), 'keep', 'a disabled control blurs with no relatedTarget');
+  assert.equal(boundary.focusOut(popover, outside), 'keep', 'focus cannot close a preview the pointer is still inside');
+  assert.equal(boundary.pointerOut(popover, outside), 'leave');
+  assert.equal(boundary.pointerInside, false);
+  assert.equal(boundary.focusOut(popover, outside), 'leave', 'leaving the preview with focus still inside closes it');
+  assert.equal(boundary.focusOut(popover, null), null, 'a stale blur must not cancel the pointer-leave timer');
+  assert.equal(boundary.focusOut(outside, outside), null, 'focus outside the preview is ignored');
+  assert.equal(boundary.pointerOut(popover, popover), 'keep', 'moving between controls keeps it open');
+  assert.equal(boundary.pointerInside, true);
+  boundary.pointerExit();
+  assert.equal(boundary.pointerInside, false);
+  assert.equal(boundary.focusOut(popover, null), null, 'a blur after pointer exit does not cancel the timer');
 });
 
 test('Escape dismissal suppresses reopening and the native card until the pointer leaves that row', async () => {

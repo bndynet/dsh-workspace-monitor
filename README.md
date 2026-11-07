@@ -32,11 +32,53 @@ npm ci
 npm pack
 ```
 
-`npm pack` 自动构建并运行测试，生成 `bndynet-dsh-workspace-monitor-0.2.0.tgz`。单独检查使用 `npm run check`；安装端无需构建。
+`npm pack` 自动构建并运行测试，生成 `bndynet-dsh-workspace-monitor-0.2.1.tgz`。单独检查使用 `npm run check`；安装端无需构建。
+
+### 本地调试
+
+启动一个独立于日常环境的 DSH：
+
+```sh
+npm run dev
+```
+
+- 使用仓库下的 `.dsh-dev/` 作为 `DSH_HOME`（已加入 `.gitignore`），不会修改 `~/.dsh`。
+- 默认在 `http://127.0.0.1:3081` 启动 Web UI，不自动打开浏览器。
+- 需要 `dsh` 在 `PATH` 中，也可用 `DSH_BIN` 指定；换端口用 `npm run dev -- --port 3082`。
+- 用 `DSH_DEV_HOME=/tmp/dsh-dev npm run dev` 可指定其他开发目录。
+
+首次启动后，在 **Plugins → Add plugin** 输入 `link:/当前仓库绝对路径`，安装并点 **Enable now**；然后在 dev 实例里添加一个 Workspace。使用 `link:` 很重要：profile 会直接引用仓库，而不是复制一份安装包。
+
+开发循环：
+
+```sh
+npm run build
+```
+
+- 修改 `src/client`（面板、悬停浮层、样式）：构建后 DSH 会轮询 `lib/client.js` 并自动热替换，通常无需刷新页面。
+- 修改 `src/host`、`src/actions`、`src/monitor`：构建后重启 `npm run dev`。
+- HMR 没生效时先看 **Settings → Plugins** 的加载错误，或 `Ctrl+Shift+R` 强制刷新。
+
+调试入口：
+
+- 悬停 Workspace 后的浮层是 `[data-dwm-hover]`，右侧面板是 `[data-dwm-panel]`。
+- DevTools → Network 过滤 `workspace-monitor`，可查看 `scan/commands/run/stop/output` 的请求和响应。
+- DevTools → Sources 搜索 `plugins/@bndynet/dsh-workspace-monitor/client.js`，构建产物未压缩，可直接下断点。
+- Host 报错看运行 `npm run dev` 的终端；启动日志在 `.dsh-dev/logs/`。
+
+只调逻辑或组件渲染时不必启动 DSH：
+
+```sh
+npm test
+node --test tests/client/hover.test.mjs
+node --test --test-name-pattern="Run/Stop" tests/client/hover.test.mjs
+```
+
+注意：日常 `127.0.0.1:3080` 运行的是 `~/.dsh/profiles/web` 中已安装的插件副本，仓库改动不会自动进入那里。要更新日常环境，使用 `npm pack` 重新打包安装。
 
 ## 发布
 
-包名为 **`@bndynet/dsh-workspace-monitor`**，**尚未发布到 npm**。发布后可在 **Plugins → Add plugin** 输入 `@bndynet/dsh-workspace-monitor@0.2.0` 在线安装；当前使用本地 `.tgz`。
+包名为 **`@bndynet/dsh-workspace-monitor`**，**尚未发布到 npm**。发布后可在 **Plugins → Add plugin** 输入 `@bndynet/dsh-workspace-monitor@0.2.1` 在线安装；当前使用本地 `.tgz`。
 
 流程：**打包测试 → DSH 安装验收 → 发布同一安装包到 `next` → 线上验收 → 设置 `latest`**。权限、认证和具体命令见[发布指南](docs/PUBLISHING.md)。
 

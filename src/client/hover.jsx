@@ -1,21 +1,21 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { detectLanguage, portAddress } from './model.mjs';
-import { compactWorkspaceCommand, createWorkspaceHover, placeWorkspaceHover, suppressNativeWorkspaceHover, workspaceTarget } from './hover-model.mjs';
-import { CommandCatalog, ManagedRuns, StopButton, StopFeedback, executionStyles, useExecution } from './execution.jsx';
-import { isActiveRun, mergeRuns, runKey, stopKey, unlistedRuns } from './execution-model.mjs';
+import { compactWorkspaceCommand, createHoverDismissal, createWorkspaceHover, placeWorkspaceHover, suppressNativeWorkspaceHover, workspaceTarget } from './hover-model.mjs';
+import { CommandCatalog, StopButton, StopFeedback, executionStyles, useExecution } from './execution.jsx';
+import { isActiveRun, mergeRuns, runKey, stopKey } from './execution-model.mjs';
 
 const copy = {
   en: {
     title: 'Running tasks', loading: 'Reading running tasks…', empty: 'No running tasks found.',
     error: 'Could not read running tasks.', retry: 'Try again', more: count => `+${count} more tasks`,
-    partial: 'Some process details are unavailable.', count: count => `${count} ${count === 1 ? 'task' : 'tasks'}`,
+    count: count => `${count} ${count === 1 ? 'task' : 'tasks'}`,
     morePorts: count => `Show ${count} more endpoints`, collapsePorts: 'Less', collapsePortsLabel: 'Collapse endpoints', endpoints: 'All listening endpoints',
   },
   zh: {
     title: '运行任务', loading: '正在读取运行任务…', empty: '未发现运行中的任务。',
     error: '无法读取运行任务。', retry: '重试', more: count => `还有 ${count} 个任务`,
-    partial: '部分进程信息不可用。', count: count => `${count} 个任务`,
+    count: count => `${count} 个任务`,
     morePorts: count => `展开其余 ${count} 个端口端点`, collapsePorts: '收起', collapsePortsLabel: '收起端口列表', endpoints: '全部监听端点',
   },
 };
@@ -25,6 +25,7 @@ export const hoverStyles = `
 .dwm-hover{--dwm-hover-text:var(--dsw-alias-label-primary,#202b32);--dwm-hover-muted:var(--dsw-alias-label-secondary,#64747b);--dwm-hover-line:var(--dsw-alias-border-l3,#dfe7e8);--dwm-hover-surface:var(--dsw-alias-bg-layer-1,#fff);--dwm-hover-accent:var(--dsw-alias-state-business-primary,#087f83);position:fixed;z-index:110;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;background:var(--dwm-hover-surface);color:var(--dwm-hover-text);border:1px solid var(--dwm-hover-line);border-radius:10px;box-shadow:0 8px 32px #0002;overscroll-behavior:contain;font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;-webkit-app-region:no-drag}
 .dwm-hover *{box-sizing:border-box}.dwm-hover-head{padding:9px 12px 8px;border-bottom:1px solid var(--dwm-hover-line)}.dwm-hover-heading{display:flex;align-items:center;gap:10px}.dwm-hover-heading h2{font:600 13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;min-width:0;flex:1;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}.dwm-hover-count{flex:none;font-size:10px;color:var(--dwm-hover-muted);font-variant-numeric:tabular-nums}.dwm-hover-label{font-size:10px;color:var(--dwm-hover-muted);margin:2px 0 0}.dwm-hover-path{font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:5px 0 0;color:var(--dwm-hover-muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.dwm-hover-list{list-style:none;margin:0;padding:1px 12px}.dwm-hover-task{padding:5px 0;border-bottom:1px solid var(--dwm-hover-line)}.dwm-hover-task:last-child{border-bottom:0}.dwm-hover-command{min-width:0;flex:1;font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:text}.dwm-hover-meta{display:flex;align-items:center;gap:4px;flex:none}.dwm-hover-port{font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:inline-block;padding:1px 5px;color:var(--dwm-hover-accent);border:1px solid var(--dwm-hover-line);border-radius:4px;background:var(--dsw-alias-bg-base,#fff);font-variant-numeric:tabular-nums}.dwm-hover-no-port{color:var(--dwm-hover-muted);font-size:11px}.dwm-hover-pid{font-size:9px;color:var(--dwm-hover-muted);margin-left:auto;font-variant-numeric:tabular-nums}.dwm-hover-status{padding:9px 12px;color:var(--dwm-hover-muted);font-size:12px}.dwm-hover-status p{margin:0;line-height:1.6;overflow-wrap:anywhere}.dwm-hover-retry{margin:8px 0 0;padding:3px 7px;border:1px solid var(--dwm-hover-line);border-radius:5px;background:var(--dsw-alias-bg-base,#fff);color:var(--dwm-hover-text);cursor:pointer;font:11px/1.5 inherit}.dwm-hover-retry:focus-visible{outline:2px solid var(--dwm-hover-accent);outline-offset:2px}.dwm-hover-footer{padding:5px 12px;color:var(--dwm-hover-muted);font-size:10px;border-top:1px solid var(--dwm-hover-line)}.dwm-hover-bridge{position:fixed;z-index:109;-webkit-app-region:no-drag}
 .dwm-hover .dwm-hover-task-row{align-items:flex-start}.dwm-hover .dwm-hover-task-main{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;min-width:0;flex:1}.dwm-hover .dwm-hover-command{flex:1 1 84px;min-width:0;max-width:100%}.dwm-hover .dwm-hover-meta{min-width:0;max-width:100%;flex:0 1 auto;flex-wrap:wrap}.dwm-hover-port-toggle{flex:none;max-width:100%;min-height:20px;border:0;border-radius:3px;padding:2px 3px;background:transparent;color:var(--dwm-hover-accent);font:10px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}.dwm-hover-port-toggle:hover{background:var(--dsw-alias-interactive-bg-hover,#eef3f3)}.dwm-hover-port-toggle:focus-visible{outline:2px solid var(--dwm-hover-accent);outline-offset:2px}.dwm-hover-endpoints{flex:1 0 100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin-top:2px;padding:4px 0;overscroll-behavior:contain}.dwm-hover-endpoints[hidden]{display:none}.dwm-hover-endpoint{min-width:0;max-width:100%;font:10px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:normal;overflow-wrap:anywhere;color:var(--dwm-hover-muted)}.dwm-hover-endpoint-protocol{color:var(--dwm-hover-accent)}
+.dwm-hover{display:flex;flex-direction:column;overflow:hidden}.dwm-hover>*{flex:none}.dwm-hover>section[data-dwm-commands]{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}.dwm-hover>section[data-dwm-commands]>.dwm-command-list{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;margin:0 -12px;padding:0 12px}
 
 `;
 
@@ -38,6 +39,7 @@ export function WorkspaceHoverOverlay({ useWorkspaces, scan, actions }) {
   const [position, setPosition] = useState(null);
   const [language, setLanguage] = useState(detectLanguage);
   const controllerRef = useRef(null);
+  const dismissalRef = useRef(null);
   const popoverRef = useRef(null);
   const id = `dwm-workspace-hover-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   const execution = useExecution({ identity: state ? { workspaceId: state.target.workspaceId } : null, actions, onChanged: (_result, identity) => {
@@ -78,16 +80,25 @@ export function WorkspaceHoverOverlay({ useWorkspaces, scan, actions }) {
     const inCurrentRow = node => Boolean(node?.nodeType && controller.getAnchorTarget()?.row.contains(node));
     const inRegion = node => inPopover(node) || inCurrentRow(node)
       || Boolean(node?.closest?.('[data-dwm-hover-bridge]'));
+    const dismissal = createHoverDismissal(inRegion);
+    dismissalRef.current = dismissal;
+    const settle = action => {
+      if (action === 'keep') controller.keep();
+      else if (action === 'leave') controller.leave();
+    };
     const pointerOver = event => {
       if (document.hidden || event.pointerType === 'touch' || event.buttons) return;
-      if (inPopover(event.target) || event.target.closest?.('[data-dwm-hover-bridge]')) { controller.keep(); return; }
+      if (inPopover(event.target) || event.target.closest?.('[data-dwm-hover-bridge]')) { dismissal.pointerEnter(); controller.keep(); return; }
       const target = workspaceTarget(event.target, workspacesRef.current);
-      if (target && workspaceTarget(event.relatedTarget, workspacesRef.current)?.row !== target.row) enter(target);
+      if (!target) return;
+      dismissal.pointerEnter();
+      if (workspaceTarget(event.relatedTarget, workspacesRef.current)?.row !== target.row) enter(target);
     };
     const pointerOut = event => {
-      if (!inRegion(event.target)) return;
-      if (inRegion(event.relatedTarget) || inRegion(document.activeElement)) controller.keep();
-      else controller.leave();
+      // The popover and bridge own their own pointerleave boundaries. A child
+      // control can emit a null-related pointerout when it becomes disabled.
+      if (inPopover(event.target) || event.target.closest?.('[data-dwm-hover-bridge]')) return;
+      settle(dismissal.pointerOut(event.target, event.relatedTarget));
     };
     const focusIn = event => {
       if (document.hidden) return;
@@ -95,10 +106,7 @@ export function WorkspaceHoverOverlay({ useWorkspaces, scan, actions }) {
       const target = workspaceTarget(event.target, workspacesRef.current);
       if (target) enter(target);
     };
-    const focusOut = event => {
-      if (!inRegion(event.target)) return;
-      if (inRegion(event.relatedTarget)) controller.keep(); else controller.leave();
-    };
+    const focusOut = event => settle(dismissal.focusOut(event.target, event.relatedTarget));
     const keyDown = event => { if (event.key === 'Escape') controller.dismiss(); };
     const dismissOutside = event => { if (!inPopover(event.target)) controller.dismiss(); };
     const hide = () => { if (document.hidden) controller.dismiss(); };
@@ -111,6 +119,7 @@ export function WorkspaceHoverOverlay({ useWorkspaces, scan, actions }) {
     return () => {
       controller.dispose();
       controllerRef.current = null;
+      dismissalRef.current = null;
       for (const [name, listener] of listeners) document.removeEventListener(name, listener);
     };
   }, [scan]);
@@ -160,8 +169,8 @@ export function WorkspaceHoverOverlay({ useWorkspaces, scan, actions }) {
 
   if (typeof document === 'undefined') return null;
   if (!state) return suppressionTarget ? createPortal(<style>{hoverStyles}{executionStyles}</style>, document.body) : null;
-  const keep = () => controllerRef.current?.keep();
-  const leave = () => controllerRef.current?.leave();
+  const keep = () => { dismissalRef.current?.pointerEnter(); controllerRef.current?.keep(); };
+  const leave = () => { dismissalRef.current?.pointerExit(); controllerRef.current?.leave(); };
   return createPortal(<>
     <style>{hoverStyles}{executionStyles}</style>
     {position && <div className="dwm-hover-bridge" data-dwm-hover-bridge aria-hidden="true" style={position.bridge} onPointerEnter={keep} onPointerLeave={leave} />}
@@ -178,13 +187,11 @@ export function WorkspaceHoverContent({ state, language = 'en', headingId, onRet
   const runs = mergeRuns(state.snapshot?.runs, execution?.state.runs);
   const catalog = execution?.state;
   const commands = catalog?.commands || [];
-  const knownCommands = new Set(commands.map(command => command.id));
   // An active script already has its ports and Stop control in the task list.
   const representedRuns = new Set(tasks.slice(0, 5).map(task => task.runId).filter(Boolean));
   const representedCommands = new Set(runs.filter(run => isActiveRun(run) && representedRuns.has(runKey(run))).map(run => run.commandId));
   const availableCommands = commands.filter(command => !representedCommands.has(command.id));
   const showCatalog = catalog && (catalog.commandStatus !== 'ready' || !commands.length || availableCommands.length > 0);
-  const recentRuns = unlistedRuns(runs, tasks).filter(run => !isActiveRun(run) || !knownCommands.has(run.commandId));
   return <>
     <header className="dwm-hover-head"><div className="dwm-hover-heading"><h2 id={headingId}>{state.target.title}</h2>{state.status === 'ready' && <span className="dwm-hover-count">{text.count(tasks.length)}</span>}</div><p className="dwm-hover-path" title={state.target.path}>{state.target.path}</p></header>
     {state.status === 'loading' && <div className="dwm-hover-status" role="status"><p>{text.loading}</p></div>}
@@ -194,8 +201,6 @@ export function WorkspaceHoverContent({ state, language = 'en', headingId, onRet
       task={task} workspacePath={state.target.path} language={language} execution={execution}
     />)}</ol>)}
     {state.status === 'ready' && tasks.length > 5 && <footer className="dwm-hover-footer">{text.more(tasks.length - 5)}</footer>}
-    {state.status === 'ready' && state.snapshot?.warnings?.length > 0 && <footer className="dwm-hover-footer">{text.partial}</footer>}
-    {execution && <ManagedRuns runs={recentRuns} operations={catalog.operations} onStop={execution.manager.stop} identity={{ workspaceId: state.target.workspaceId }} language={language} compact canStop={state.snapshot?.capabilities?.canStop !== false} />}
     {showCatalog && <CommandCatalog state={{ ...catalog, commands: availableCommands }} runs={runs} onRun={execution.manager.run} onStop={execution.manager.stop} onRetry={execution.manager.commands} language={language} compact />}
   </>;
 }
