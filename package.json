@@ -2,6 +2,10 @@
   "name": "@bndynet/dsh-workspace-monitor",
   "version": "0.2.1",
   "description": "Run project scripts, inspect processes and ports, and stop workspace tasks in DSH.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bndynet/dsh-workspace-monitor.git"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "exports": {

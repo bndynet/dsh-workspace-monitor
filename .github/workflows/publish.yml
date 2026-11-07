@@ -1,0 +1,63 @@
+name: Build + Publish
+
+# Reuses the shared Node.js workflow from bndynet/gh.flows, following the
+# example in that repository's README.
+#
+# Prerequisite: the package must already exist on npm and this repository and
+# the caller workflow file must be configured as an npm Trusted Publisher
+# (Package settings -> Trusted publishing). npm validates the caller workflow
+# name, so configure `publish.yml`, not `npm.yml`. For the very first publish,
+# publish manually once with `npm login` / an npm token, then configure the
+# Trusted Publisher.
+#
+# The shared workflow checks out the repository, installs dependencies, runs
+# tests and build, and publishes. No caller checkout is needed.
+#
+# Pin the reusable workflow to a commit SHA instead of @main if you want
+# supply-chain immutability.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish_enabled:
+        description: 'Whether to publish to npm'
+        required: false
+        default: false
+        type: boolean
+      publish-version:
+        description: 'Version bump type'
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    uses: bndynet/gh.flows/.github/workflows/npm.yml@main
+    with:
+      node-version: '24'
+      working-directory: '.'
+      registry-url: 'https://registry.npmjs.org'
+      test-command: 'npm test'
+      build-command: 'npm run build'
+      publish-enabled: ${{ github.event_name == 'release' || inputs.publish_enabled }}
+      publish-version: ${{ inputs['publish-version'] || 'none' }}
+      publish-auth-method: 'oidc'
+      # npm test + npm run build already ran. Skip prepack and always publish
+      # the current package version under the latest dist-tag.
+      publish-command: 'npm publish --access public --provenance --ignore-scripts --tag latest'
+      deploy-folder: ''

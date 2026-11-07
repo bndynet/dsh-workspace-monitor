@@ -14,7 +14,7 @@
 | 安装包 | `bndynet-dsh-workspace-monitor-0.2.1.tgz`；发布前须验收这份 scoped 安装包，不能沿用旧包的验收结果 |
 | npm 账号 | 此前公共 registry 的 `npm whoami` 返回 `ENEEDAUTH`；尚未确认发布账号及 scope 权限，发布前须重新核对 |
 | 支持范围 | 仅声明 DSH **0.2.2-rc.1 Web UI**；macOS 已做界面验收，Linux 已做容器采集和脚本管理测试；Windows 运行/停止不可用 |
-| 项目元数据 | 尚无 `author`、`repository`、`homepage`、`bugs`；建议按真实信息补齐，勿填写不存在的链接 |
+| 项目元数据 | `repository` 已指向 GitHub；`author`、`homepage`、`bugs` 仍建议按真实信息补齐 |
 
 详细验证记录见 [VERIFICATION](VERIFICATION.md)。不要为了安装到其他 DSH 版本而直接放宽 `engines.dsh`；Workspace hover 适配需在目标版本重新验收。
 
@@ -97,6 +97,29 @@ npm dist-tag add @bndynet/dsh-workspace-monitor@0.2.1 latest --registry=https://
 
 发布与版本不可复用的规则见 [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/)。
 
+### GitHub Actions 自动发布
+
+仓库已包含 [`.github/workflows/publish.yml`](../.github/workflows/publish.yml)，它按 [`bndynet/gh.flows` README](https://github.com/bndynet/gh.flows/blob/main/README.md) 的示例复用 [`npm.yml`](https://github.com/bndynet/gh.flows/blob/main/.github/workflows/npm.yml)：
+
+- 调用方只传 `publish-enabled`、`publish-version` 等参数，不自己 checkout
+- 共享 workflow 执行 checkout、`npm ci`、`npm test`、`npm run build`，再用 `npm publish --ignore-scripts --provenance` 发布，避免重复执行 `prepack`
+- 调用方授予 `contents: write` 和 `id-token: write`；`contents: write` 用于可选的手动版本 bump 后提交并推送 tag
+- npm 侧按调用方文件名 **`publish.yml`** 配置 Trusted Publisher；不要填 `npm.yml`
+
+**首次发布**需要先手动创建 npm 包（按上面的 `npm login` + `npm publish`，或用临时 token），因为 npm 的 Trusted Publisher 配置入口只在包已存在后出现。首次发布完成后，在 npm 包设置中配置 **Trusted Publisher**：
+
+- Repository：`bndynet/dsh-workspace-monitor`
+- Workflow：`publish.yml`
+- Environment：留空（工作流未使用 environment）
+
+工作流不需要 `NPM_TOKEN`，通过 GitHub OIDC 发布并生成 provenance。触发方式：
+
+- 发布 GitHub Release：`publish-enabled` 为 true，使用当前 `package.json` 版本发布到 `latest`；建议 Release tag（如 `v0.2.1`）与包版本保持一致，工作流本身不做这项校验。
+- Actions 页面手动运行：`publish_enabled` 默认 false，只执行测试和构建；勾选后才会发布。`publish-version` 可选 `none` / `patch` / `minor` / `major`，选择 bump 时会由共享 workflow 更新版本、发布，然后提交并推送 `v<version>` tag。
+- `publish-command` 固定使用 `latest`；如需先发布到 `next`，修改该命令中的 `--tag`。
+
+发布前会执行 `npm ci`、`npm test`、`npm run build`，然后直接发布当前工作区。
+
 ## 5. 更新、回退与插件发现
 
 后续版本继续走“新版本 → 构建测试 → 本地包验收 → npm next → 线上安装验收 → latest”。建议用 Git 追踪源码并记录发行版本；需要自动发布时再接入 CI。
@@ -105,4 +128,4 @@ npm dist-tag add @bndynet/dsh-workspace-monitor@0.2.1 latest --registry=https://
 
 若需在 DSH Discover 展示，还要将公开包加入用户订阅的插件索引并提供订阅地址。**发布 npm 不等于自动进入官方中心市场**；直接通过 Add plugin 输入包名安装无需订阅索引。参见 [DSH 插件索引文档](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/plugin-market.md)。
 
-后续可采用 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) 的 OIDC 发布方式，需先配置真实仓库与 workflow。包结构参考 [DSH 官方打包文档](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)。
+自动发布使用 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) 的 OIDC 方式，并通过 `bndynet/gh.flows` 复用共享 workflow；配置好 npm 侧的 Trusted Publisher 后即可由 GitHub Actions 发布。包结构参考 [DSH 官方打包文档](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)。
