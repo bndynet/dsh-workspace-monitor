@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-本项目使用 **`@bndynet/dsh-workspace-monitor`**，当前版本 **`0.2.1`**，**尚未发布到 npm**。本次仅更新包名与文档，没有执行登录或公开发布。
+本项目使用 **`@bndynet/dsh-workspace-monitor`**。npm 上已发布稳定版 **`0.2.0`**（`latest`）；仓库当前源码版本为 **`0.2.1`**，尚未发布。
 
 旧的 unscoped 名称 `dsh-workspace-monitor` 已在公共 npm 存在，本项目现在采用 `@bndynet` scope。名称已确定，无需再改名；发布者仍须确认账号拥有该 scope 的创建及发布权限。
 
@@ -12,7 +12,7 @@
 | --- | --- |
 | 构建与分发 | 正常 `npm pack` 自动构建并运行测试；安装包包含预编译 Host / Web、bundle patch、说明与 MIT 许可证，安装端无需构建 |
 | 安装包 | `bndynet-dsh-workspace-monitor-0.2.1.tgz`；发布前须验收这份 scoped 安装包，不能沿用旧包的验收结果 |
-| npm 账号 | 此前公共 registry 的 `npm whoami` 返回 `ENEEDAUTH`；尚未确认发布账号及 scope 权限，发布前须重新核对 |
+| npm 账号 | `0.2.0` 已发布；后续自动发布使用 Trusted Publisher / OIDC，不再依赖 `NPM_TOKEN` |
 | 支持范围 | 仅声明 DSH **0.2.2-rc.1 Web UI**；macOS 已做界面验收，Linux 已做容器采集和脚本管理测试；Windows 运行/停止不可用 |
 | 项目元数据 | `repository` 已指向 GitHub；`author`、`homepage`、`bugs` 仍建议按真实信息补齐 |
 
@@ -30,7 +30,7 @@ npm login --registry=https://registry.npmjs.org
 npm whoami --registry=https://registry.npmjs.org
 ```
 
-首次发布前，包查询返回 `E404` 可以是尚未创建，并不证明当前账号有 scope 权限。请在 npm 确认登录账号对 `@bndynet` 的创建与发布权限；若该 scoped 包已经存在，还需确认包权限：
+包已存在于公共 npm。发布前确认登录账号拥有该 scoped 包的发布权限：
 
 ```sh
 npm owner ls @bndynet/dsh-workspace-monitor --registry=https://registry.npmjs.org
@@ -40,7 +40,7 @@ npm owner ls @bndynet/dsh-workspace-monitor --registry=https://registry.npmjs.or
 
 ## 2. 构建并制作安装包
 
-首次发布可保留尚未使用的 `0.2.1`。以后修改代码并发布时须使用新版本，例如 `npm version patch --no-git-tag-version` 同时更新两个 package 文件；不能覆盖已经发布过的同名同版本。
+`0.2.0` 已发布，`0.2.1` 是下一个待发布版本。以后修改代码并发布时须使用新版本，例如 `npm version patch --no-git-tag-version` 同时更新两个 package 文件；不能覆盖已经发布过的同名同版本。
 
 在项目根目录执行：
 
@@ -106,7 +106,7 @@ npm dist-tag add @bndynet/dsh-workspace-monitor@0.2.1 latest --registry=https://
 - 调用方授予 `contents: write` 和 `id-token: write`；`contents: write` 用于可选的手动版本 bump 后提交并推送 tag
 - npm 侧按调用方文件名 **`publish.yml`** 配置 Trusted Publisher；不要填 `npm.yml`
 
-**首次发布**需要先手动创建 npm 包（按上面的 `npm login` + `npm publish`，或用临时 token），因为 npm 的 Trusted Publisher 配置入口只在包已存在后出现。首次发布完成后，在 npm 包设置中配置 **Trusted Publisher**：
+`0.2.0` 已在 npm 上，可以直接在 npm 包设置中配置 **Trusted Publisher**：
 
 - Repository：`bndynet/dsh-workspace-monitor`
 - Workflow：`publish.yml`
@@ -122,7 +122,7 @@ npm dist-tag add @bndynet/dsh-workspace-monitor@0.2.1 latest --registry=https://
 
 ## 5. 更新、回退与插件发现
 
-后续版本继续走“新版本 → 构建测试 → 本地包验收 → npm next → 线上安装验收 → latest”。建议用 Git 追踪源码并记录发行版本；需要自动发布时再接入 CI。
+后续版本继续走“新版本 → 构建测试 → 本地包验收 → GitHub Actions 发布 → 线上安装验收”。建议用 Git 追踪源码并记录发行版本。
 
 出问题时可将 `latest` 指回已验证版本，并让用户手动安装旧版。**修改 dist-tag 不会自动回退已安装的插件**；修复须发布新版本，不能覆盖旧版本或依赖撤包重复使用版本号。
 

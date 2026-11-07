@@ -3,12 +3,10 @@ name: Build + Publish
 # Reuses the shared Node.js workflow from bndynet/gh.flows, following the
 # example in that repository's README.
 #
-# Prerequisite: the package must already exist on npm and this repository and
-# the caller workflow file must be configured as an npm Trusted Publisher
-# (Package settings -> Trusted publishing). npm validates the caller workflow
-# name, so configure `publish.yml`, not `npm.yml`. For the very first publish,
-# publish manually once with `npm login` / an npm token, then configure the
-# Trusted Publisher.
+# Prerequisite: this repository and the caller workflow file must be configured
+# as an npm Trusted Publisher (Package settings -> Trusted publishing). The
+# package already exists on npm. npm validates the caller workflow name, so
+# configure `publish.yml`, not `npm.yml`.
 #
 # The shared workflow checks out the repository, installs dependencies, runs
 # tests and build, and publishes. No caller checkout is needed.
