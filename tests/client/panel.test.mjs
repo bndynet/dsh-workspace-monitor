@@ -138,6 +138,27 @@ test('compact preview offers one Stop per active run but omits run history and s
   assert.match(pending, /data-dwm-command-id="root:dev"/, 'a run still awaiting OS discovery stays controllable through its command row');
 });
 
+test('workspace hover groups deeper processes under the managed script and keeps their ports', () => {
+  const active = { id: 'run-dev', runId: 'run-dev', commandId: 'root:dev', command: 'npm run dev', status: 'running', pid: 123 };
+  const execution = { state: { runs: [], operations: {}, commands: [], commandStatus: 'ready' }, manager: { stop() {} } };
+  const tasks = [
+    { id: 'task-dev', runId: 'run-dev', pid: 123, pids: [123, 124], command: '/bin/sh -c npm run dev', processes: [{ pid: 123, ppid: 10, command: '/bin/sh -c npm run dev' }, { pid: 124, ppid: 123, command: 'npm run dev' }], ports: [] },
+    { id: 'task-vite', pid: 125, pids: [125], command: 'node /project/node_modules/vite/bin/vite.js', processes: [{ pid: 125, ppid: 124, command: 'node /project/node_modules/vite/bin/vite.js' }], ports: [{ protocol: 'tcp', address: '127.0.0.1', port: 5173 }] },
+    { id: 'task-other', pid: 500, pids: [500], command: 'node /project/worker.js', processes: [{ pid: 500, ppid: 1, command: 'node /project/worker.js' }], ports: [] },
+  ];
+  const html = renderToStaticMarkup(React.createElement(WorkspaceHoverContent, {
+    state: { target: { title: 'Demo', path: '/project' }, status: 'ready', snapshot: { tasks, runs: [active], warnings: [] } },
+    execution, language: 'zh',
+  }));
+
+  assert.equal((html.match(/data-dwm-hover-task/g) || []).length, 2, 'the descendant scanner row is collapsed into the managed run');
+  assert.match(html, /npm run dev/);
+  assert.match(html, /显示 2 条子进程命令/);
+  assert.match(html, /vite\/bin\/vite\.js/);
+  assert.match(html, /5173/, 'ports from collapsed descendants remain visible');
+  assert.match(html, /worker\.js/, 'independent workspace processes remain visible');
+});
+
 test('stop controls respect server ownership decisions and remain separate from task expansion buttons', () => {
   const denied = renderToStaticMarkup(React.createElement(StopButton, { task: { id: 'weak', command: 'node app.js', canStop: false, stopReason: 'weak command-only ownership' }, onStop() {} }));
   assert.match(denied, /disabled=""/); assert.match(denied, /weak command-only ownership/);

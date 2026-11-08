@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { detectLanguage, portAddress } from './model.mjs';
-import { compactWorkspaceCommand, createHoverDismissal, createWorkspaceHover, placeWorkspaceHover, suppressNativeWorkspaceHover, workspaceTarget } from './hover-model.mjs';
+import { compactWorkspaceCommand, createHoverDismissal, createWorkspaceHover, groupManagedRunTasks, placeWorkspaceHover, suppressNativeWorkspaceHover, workspaceTarget } from './hover-model.mjs';
 import { CommandCatalog, StopButton, StopFeedback, executionStyles, useExecution } from './execution.jsx';
 import { isActiveRun, mergeRuns, runKey, stopKey } from './execution-model.mjs';
 
@@ -11,12 +11,14 @@ const copy = {
     error: 'Could not read running tasks.', retry: 'Try again', more: count => `+${count} more tasks`,
     count: count => `${count} ${count === 1 ? 'task' : 'tasks'}`,
     morePorts: count => `Show ${count} more endpoints`, collapsePorts: 'Less', collapsePortsLabel: 'Collapse endpoints', endpoints: 'All listening endpoints',
+    childProcesses: count => `Show ${count} child process ${count === 1 ? 'command' : 'commands'}`,
   },
   zh: {
     title: '运行任务', loading: '正在读取运行任务…', empty: '未发现运行中的任务。',
     error: '无法读取运行任务。', retry: '重试', more: count => `还有 ${count} 个任务`,
     count: count => `${count} 个任务`,
     morePorts: count => `展开其余 ${count} 个端口端点`, collapsePorts: '收起', collapsePortsLabel: '收起端口列表', endpoints: '全部监听端点',
+    childProcesses: count => `显示 ${count} 条子进程命令`,
   },
 };
 
@@ -26,6 +28,7 @@ export const hoverStyles = `
 .dwm-hover *{box-sizing:border-box}.dwm-hover-head{padding:9px 12px 8px;border-bottom:1px solid var(--dwm-hover-line)}.dwm-hover-heading{display:flex;align-items:center;gap:10px}.dwm-hover-heading h2{font:600 13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;min-width:0;flex:1;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}.dwm-hover-count{flex:none;font-size:10px;color:var(--dwm-hover-muted);font-variant-numeric:tabular-nums}.dwm-hover-label{font-size:10px;color:var(--dwm-hover-muted);margin:2px 0 0}.dwm-hover-path{font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:5px 0 0;color:var(--dwm-hover-muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.dwm-hover-list{list-style:none;margin:0;padding:1px 12px}.dwm-hover-task{padding:5px 0;border-bottom:1px solid var(--dwm-hover-line)}.dwm-hover-task:last-child{border-bottom:0}.dwm-hover-command{min-width:0;flex:1;font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:text}.dwm-hover-meta{display:flex;align-items:center;gap:4px;flex:none}.dwm-hover-port{font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:inline-block;padding:1px 5px;color:var(--dwm-hover-accent);border:1px solid var(--dwm-hover-line);border-radius:4px;background:var(--dsw-alias-bg-base,#fff);font-variant-numeric:tabular-nums}.dwm-hover-no-port{color:var(--dwm-hover-muted);font-size:11px}.dwm-hover-pid{font-size:9px;color:var(--dwm-hover-muted);margin-left:auto;font-variant-numeric:tabular-nums}.dwm-hover-status{padding:9px 12px;color:var(--dwm-hover-muted);font-size:12px}.dwm-hover-status p{margin:0;line-height:1.6;overflow-wrap:anywhere}.dwm-hover-retry{margin:8px 0 0;padding:3px 7px;border:1px solid var(--dwm-hover-line);border-radius:5px;background:var(--dsw-alias-bg-base,#fff);color:var(--dwm-hover-text);cursor:pointer;font:11px/1.5 inherit}.dwm-hover-retry:focus-visible{outline:2px solid var(--dwm-hover-accent);outline-offset:2px}.dwm-hover-footer{padding:5px 12px;color:var(--dwm-hover-muted);font-size:10px;border-top:1px solid var(--dwm-hover-line)}.dwm-hover-bridge{position:fixed;z-index:109;-webkit-app-region:no-drag}
 .dwm-hover .dwm-hover-task-row{align-items:flex-start}.dwm-hover .dwm-hover-task-main{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;min-width:0;flex:1}.dwm-hover .dwm-hover-command{flex:1 1 84px;min-width:0;max-width:100%}.dwm-hover .dwm-hover-meta{min-width:0;max-width:100%;flex:0 1 auto;flex-wrap:wrap}.dwm-hover-port-toggle{flex:none;max-width:100%;min-height:20px;border:0;border-radius:3px;padding:2px 3px;background:transparent;color:var(--dwm-hover-accent);font:10px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}.dwm-hover-port-toggle:hover{background:var(--dsw-alias-interactive-bg-hover,#eef3f3)}.dwm-hover-port-toggle:focus-visible{outline:2px solid var(--dwm-hover-accent);outline-offset:2px}.dwm-hover-endpoints{flex:1 0 100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin-top:2px;padding:4px 0;overscroll-behavior:contain}.dwm-hover-endpoints[hidden]{display:none}.dwm-hover-endpoint{min-width:0;max-width:100%;font:10px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:normal;overflow-wrap:anywhere;color:var(--dwm-hover-muted)}.dwm-hover-endpoint-protocol{color:var(--dwm-hover-accent)}
 .dwm-hover{display:flex;flex-direction:column;overflow:hidden}.dwm-hover>*{flex:none}.dwm-hover>section[data-dwm-commands]{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}.dwm-hover>section[data-dwm-commands]>.dwm-command-list{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;margin:0 -12px;padding:0 12px}
+.dwm-hover-child-processes{flex:1 0 100%;min-width:0;color:var(--dwm-hover-muted);font-size:10px}.dwm-hover-child-processes summary{width:fit-content;max-width:100%;color:var(--dwm-hover-accent);cursor:pointer;overflow-wrap:anywhere}.dwm-hover-child-processes ul{list-style:none;margin:4px 0 2px;padding:0 0 0 8px;border-left:1px solid var(--dwm-hover-line)}.dwm-hover-child-processes li+li{margin-top:3px}.dwm-hover-child-processes code{display:block;overflow-wrap:anywhere;font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
 `;
 
@@ -185,22 +188,23 @@ export function WorkspaceHoverContent({ state, language = 'en', headingId, onRet
   const text = copy[language] || copy.en;
   const tasks = state.snapshot?.tasks || [];
   const runs = mergeRuns(state.snapshot?.runs, execution?.state.runs);
+  const displayTasks = groupManagedRunTasks(tasks, runs);
   const catalog = execution?.state;
   const commands = catalog?.commands || [];
   // An active script already has its ports and Stop control in the task list.
-  const representedRuns = new Set(tasks.slice(0, 5).map(task => task.runId).filter(Boolean));
+  const representedRuns = new Set(displayTasks.slice(0, 5).map(task => task.runId).filter(Boolean));
   const representedCommands = new Set(runs.filter(run => isActiveRun(run) && representedRuns.has(runKey(run))).map(run => run.commandId));
   const availableCommands = commands.filter(command => !representedCommands.has(command.id));
   const showCatalog = catalog && (catalog.commandStatus !== 'ready' || !commands.length || availableCommands.length > 0);
   return <>
-    <header className="dwm-hover-head"><div className="dwm-hover-heading"><h2 id={headingId}>{state.target.title}</h2>{state.status === 'ready' && <span className="dwm-hover-count">{text.count(tasks.length)}</span>}</div><p className="dwm-hover-path" title={state.target.path}>{state.target.path}</p></header>
+    <header className="dwm-hover-head"><div className="dwm-hover-heading"><h2 id={headingId}>{state.target.title}</h2>{state.status === 'ready' && <span className="dwm-hover-count">{text.count(displayTasks.length)}</span>}</div><p className="dwm-hover-path" title={state.target.path}>{state.target.path}</p></header>
     {state.status === 'loading' && <div className="dwm-hover-status" role="status"><p>{text.loading}</p></div>}
     {state.status === 'error' && <div className="dwm-hover-status" role="alert"><p>{text.error}</p><button type="button" className="dwm-hover-retry" onClick={onRetry}>{text.retry}</button></div>}
-    {state.status === 'ready' && (tasks.length === 0 ? !execution && <div className="dwm-hover-status"><p>{text.empty}</p></div> : <ol className="dwm-hover-list">{tasks.slice(0, 5).map(task => <WorkspaceHoverTask
+    {state.status === 'ready' && (displayTasks.length === 0 ? !execution && <div className="dwm-hover-status"><p>{text.empty}</p></div> : <ol className="dwm-hover-list">{displayTasks.slice(0, 5).map(task => <WorkspaceHoverTask
       key={`${state.target.workspaceId || state.target.path}:${task.id || `${task.pid}:${task.startedAt || ''}`}`}
       task={task} workspacePath={state.target.path} language={language} execution={execution}
     />)}</ol>)}
-    {state.status === 'ready' && tasks.length > 5 && <footer className="dwm-hover-footer">{text.more(tasks.length - 5)}</footer>}
+    {state.status === 'ready' && displayTasks.length > 5 && <footer className="dwm-hover-footer">{text.more(displayTasks.length - 5)}</footer>}
     {showCatalog && <CommandCatalog state={{ ...catalog, commands: availableCommands }} runs={runs} onRun={execution.manager.run} onStop={execution.manager.stop} onRetry={execution.manager.commands} language={language} compact />}
   </>;
 }
@@ -215,6 +219,7 @@ export function WorkspaceHoverTask({ task, workspacePath, language = 'en', execu
     <div className="dwm-hover-task-row"><div className="dwm-hover-task-main">
       <code className="dwm-hover-command" title={`${task.command}\nPID ${task.pid}`}>{compactWorkspaceCommand(task.command, workspacePath)}</code>
       <HoverTaskPorts ports={task.ports || []} expanded={expanded} onToggle={() => setExpanded(value => !value)} controlsId={controlsId} language={language} />
+      {task.childProcesses?.length > 0 && <details className="dwm-hover-child-processes"><summary>{(copy[language] || copy.en).childProcesses(task.childProcesses.length)}</summary><ul>{task.childProcesses.map(process => <li key={process.pid}><code title={`PID ${process.pid}`}>{compactWorkspaceCommand(process.command, workspacePath)}</code></li>)}</ul></details>}
     </div>{execution && <StopButton task={task} operation={operation} onStop={execution.manager.stop} language={language} />}</div>
     <StopFeedback operation={operation} language={language} />{operation?.error && <div className="dwm-action-error" role="alert">{operation.error.message}</div>}
   </li>;

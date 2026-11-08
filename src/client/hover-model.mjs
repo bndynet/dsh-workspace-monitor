@@ -20,6 +20,66 @@ export function compactWorkspaceCommand(command, workspacePath) {
   return label.replace(prefix, '$1./');
 }
 
+/** Collapse scanner rows that belong to a plugin-managed run into that run's row. */
+export function groupManagedRunTasks(tasks = [], runs = []) {
+  const activeRuns = runs.filter(run => ['running', 'stopping'].includes(run.status));
+  if (!activeRuns.length || !tasks.length) return tasks;
+
+  const processByPid = new Map();
+  for (const task of tasks) {
+    for (const process of task.processes || []) processByPid.set(process.pid, process);
+    if (!processByPid.has(task.pid)) processByPid.set(task.pid, { pid: task.pid, ppid: 0, command: task.command });
+  }
+  const isDescendantOf = (pid, ancestor) => {
+    const seen = new Set();
+    let process = processByPid.get(pid);
+    while (process?.ppid && !seen.has(process.ppid)) {
+      if (process.ppid === ancestor) return true;
+      seen.add(process.ppid);
+      process = processByPid.get(process.ppid);
+    }
+    return false;
+  };
+
+  const hidden = new Set();
+  const rootsByTask = new Map();
+  const roots = activeRuns.flatMap(run => {
+    const runId = run.runId || run.id;
+    const root = tasks.find(task => (runId && task.runId === runId) || (run.pid && task.pids?.includes(run.pid)));
+    return root ? [{ run, root, pid: run.pid || root.pid }] : [];
+  });
+
+  for (const { run, root, pid } of roots) {
+    if (!pid) continue;
+    const hiddenForRoot = new Set();
+    for (const task of tasks) {
+      if (task === root) continue;
+      const pids = task.pids?.length ? task.pids : [task.pid];
+      if (pids.some(childPid => childPid !== pid && isDescendantOf(childPid, pid))) {
+        hidden.add(task);
+        hiddenForRoot.add(task);
+      }
+    }
+
+    const childProcesses = [...processByPid.values()]
+      .filter(process => process.pid !== pid && isDescendantOf(process.pid, pid))
+      .sort((a, b) => a.pid - b.pid)
+      .map(process => ({ pid: process.pid, command: process.command }));
+    const ports = [...new Map([
+      ...(root.ports || []),
+      ...[...hiddenForRoot].flatMap(task => task.ports || []),
+    ].map(port => [`${port.protocol}:${port.address}:${port.port}`, port])).values()];
+    rootsByTask.set(root, {
+      ...root,
+      command: run.command || run.label || root.command,
+      ports,
+      ...(childProcesses.length ? { childProcesses } : {}),
+    });
+  }
+
+  return tasks.filter(task => !hidden.has(task)).map(task => rootsByTask.get(task) || task);
+}
+
 /** Resolve only real sidebar rows whose ids exist in DSH's public Workspace model. */
 export function workspaceTarget(element, workspaces) {
   const node = element?.nodeType === 3 ? element.parentElement : element;
