@@ -22,7 +22,7 @@ npm pack
 
 生成 `bndynet-dsh-workspace-monitor-<version>.tgz` 后，在 **Plugins → Add plugin** 输入该文件的绝对路径，安装并启用。
 
-平台支持、兼容版本和功能限制见[使用与限制](docs/USAGE.md)。兼容的 DSH 版本以 `package.json` 的 `engines.dsh` 为准。
+平台支持、兼容版本和功能限制见[使用与限制](docs/USAGE.md)。当前声明支持 DSH `>=0.2.2-rc.1 <0.4.0`；为什么用范围、新版本如何验证见[兼容性](docs/COMPATIBILITY.md)。
 
 ## 开发者：本地调试
 
@@ -45,6 +45,14 @@ node --test --test-name-pattern="Run/Stop" tests/client/hover.test.mjs
 ```
 
 `tests/client` 使用 esbuild + `react-dom/server`，不需要启动 DSH。
+
+### 检查当前 DSH 的兼容性
+
+```sh
+npm run check:dsh
+```
+
+读取本机已安装的 DSH（或用 `DSH_INSTALL_DIR` 指定），按 DSH 自己的兼容检查验证版本范围，并确认插件依赖的模块、服务与槽位仍然存在。`npm test` 在装有 DSH 时也会运行同一组契约测试，没有 DSH 时跳过；周更 CI 会对最新 DSH 运行它。失败时的处理步骤见[兼容性](docs/COMPATIBILITY.md)。
 
 ### 启动隔离的 DSH
 
@@ -80,4 +88,4 @@ npm run build
 
 ## 更多
 
-[使用与限制](docs/USAGE.md) · [发布指南](docs/PUBLISHING.md) · [验证记录](docs/VERIFICATION.md) · [MIT License](LICENSE)
+[使用与限制](docs/USAGE.md) · [兼容性](docs/COMPATIBILITY.md) · [发布指南](docs/PUBLISHING.md) · [验证记录](docs/VERIFICATION.md) · [MIT License](LICENSE)

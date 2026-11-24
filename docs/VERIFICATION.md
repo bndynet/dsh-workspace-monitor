@@ -1,3 +1,37 @@
+# Verification — 0.2.3
+
+Date: 2026-11-24 (Asia/Shanghai).
+
+## DSH 0.2.2-rc.5 compatibility
+
+The plugin was skipped at boot on DSH **0.2.2-rc.5** because `engines.dsh` pinned the exact
+prerelease `0.2.2-rc.1`; DSH evaluates that field as a semver range, so only that one build
+matched. `dsh --dump-config` reported `skipping profile bundle
+"@bndynet/dsh-workspace-monitor"` with `requirements {"engines.dsh":"0.2.2-rc.1"}`.
+
+The range is now `>=0.2.2-rc.1 <0.4.0`, with load-time capability guards in the Host and Web
+entry points and a contract suite that fails when a DSH release removes a service, slot,
+module id, or the Fetch route API. See [COMPATIBILITY.md](COMPATIBILITY.md).
+
+- `npm run build` produced Host and Web bundles for 0.2.3.
+- `npm test`: **148 passed, 0 failed, 0 skipped**, including the new contract suite, the
+  inert-Host guard, and the degraded-client guard.
+- `npm run check:dsh` against the installed 0.2.2-rc.5: **5 passed, 0 failed**. It calls DSH's
+  own `evaluatePluginCompatibility` and confirms every injected module, service, slot, and the
+  `connection.fetch` registration still exist.
+- Isolated `DSH_HOME` (`.dsh-dev`, linked checkout): `dsh --profile web --dump-config` included
+  the `workspace-monitor` row with no `skipping` line.
+- Isolated `dsh web --port 3091` boot: the page's module list included
+  `@bndynet/dsh-workspace-monitor/client.js`; the served module chunk registered
+  `id:"@bndynet/dsh-workspace-monitor"`; the Host route answered
+  `POST /api/workspace-monitor/scan` with `workspace-monitor/session-not-found` for an unknown
+  session, and returned `ok: true` with host capabilities for a real Workspace id. The boot log
+  contained no plugin load errors.
+- Not verified here: browser interaction (sidebar tab, hover preview, run/stop) under 0.2.2-rc.5,
+  a fresh tarball install into an empty profile, and macOS/Windows hosts.
+
+---
+
 # Verification — 0.3.2
 
 Date: 2026-11-18 (Asia/Shanghai).
