@@ -1,0 +1,47 @@
+name: DSH compatibility
+
+# Detects a DSH release that changes the surfaces this plugin uses, before a
+# user hits the incompatibility screen. The weekly run installs the newest
+# published DSH outside the project tree and runs the same contract suite that
+# `npm run check:dsh` runs locally.
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'tests/compat/**'
+      - 'scripts/check-dsh.mjs'
+      - '.github/workflows/compat.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dsh-compat
+  cancel-in-progress: true
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install the latest DSH outside the project tree
+        run: npm install --prefix .dsh-compat --no-save --ignore-scripts @deepseek-ai/dsh@latest
+      - name: Check plugin surfaces against the latest DSH
+        run: DSH_INSTALL_DIR="$PWD/.dsh-compat/node_modules/@deepseek-ai/dsh" npm run check:dsh
+      - name: Report the tested DSH version
+        if: always()
+        run: jq -r .version .dsh-compat/node_modules/@deepseek-ai/dsh/package.json
