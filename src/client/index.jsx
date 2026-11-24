@@ -195,20 +195,38 @@ export function Task({ task, expanded, toggle, text, onCopy, now, language = 'en
   </article>;
 }
 
+/** One unavailable integration must not unregister the rest of the plugin. */
+function degrade(label, error) {
+  console.error(`workspace-monitor: ${label} is unavailable in this DSH Web client; the remaining integrations stay registered.`, error);
+}
+
 export function apply(ctx) {
+  // Slot names and services can move between DSH releases. Detect the baseline
+  // instead of throwing during activation, which would drop the whole plugin.
+  if (typeof ctx?.effect !== 'function' || typeof ctx?.slots?.inject !== 'function'
+    || typeof ctx?.connection?.rpc?.call !== 'function') {
+    console.warn('workspace-monitor: this DSH Web client does not expose the slot and RPC services the plugin needs; the plugin stays inactive.');
+    return;
+  }
   const text = () => copy[detectLanguage()];
   const scan = (request, signal) => ctx.connection.rpc.call('/api', 'workspace-monitor/scan', request, signal);
   const actions = Object.fromEntries(['commands', 'run', 'stop', 'output'].map(endpoint => [endpoint, (request, signal) => ctx.connection.rpc.call('/api', `workspace-monitor/${endpoint}`, request, signal)]));
-  ctx.effect(() => ctx.sidebarRightTabs.register({
-    id: ID, kind: KIND, title: () => text().title,
-    guide: [{ id: 'running-tasks', order: 40, title: () => text().title, description: () => text().description, icon: () => <Icon name="tasks" /> }],
-  }), 'workspace-monitor: tab');
-  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
-    name: 'sidebar.right.pane.tab', key: ID,
-    inject: () => ({ scan, actions }),
-  }, Panel)), 'workspace-monitor: panel');
-  ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({
-    name: 'shell.overlay', id: `${ID}-hover`, order: 450,
-    inject: () => ({ scan, actions }),
-  }, WorkspaceHoverOverlay)), 'workspace-monitor: workspace hover preview');
+  try {
+    ctx.effect(() => ctx.sidebarRightTabs.register({
+      id: ID, kind: KIND, title: () => text().title,
+      guide: [{ id: 'running-tasks', order: 40, title: () => text().title, description: () => text().description, icon: () => <Icon name="tasks" /> }],
+    }), 'workspace-monitor: tab');
+  } catch (error) { degrade('the sidebar tab API', error); }
+  try {
+    ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+      name: 'sidebar.right.pane.tab', key: ID,
+      inject: () => ({ scan, actions }),
+    }, Panel)), 'workspace-monitor: panel');
+  } catch (error) { degrade('the sidebar panel slot', error); }
+  try {
+    ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+      name: 'shell.overlay', id: `${ID}-hover`, order: 450,
+      inject: () => ({ scan, actions }),
+    }, WorkspaceHoverOverlay)), 'workspace-monitor: workspace hover preview');
+  } catch (error) { degrade('the shell overlay slot', error); }
 }

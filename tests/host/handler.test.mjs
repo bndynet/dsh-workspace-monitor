@@ -363,6 +363,19 @@ test('the plugin registers its five exact authenticated API routes with required
   for (const cleanup of cleanups.reverse()) await cleanup();
 });
 
+test('a DSH release without the Connection Fetch API leaves the plugin inert instead of failing activation', () => {
+  const warnings = [];
+  const original = console.warn;
+  console.warn = message => warnings.push(message);
+  try {
+    assert.doesNotThrow(() => apply({ ...context(), effect: callback => callback(), connection: {} }));
+  } finally {
+    console.warn = original;
+  }
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /connection\.fetch\.register/);
+});
+
 test('unloading the plugin cancels and awaits an already admitted request', async t => {
   const { path } = await workspace(t);
   const cleanups = [];

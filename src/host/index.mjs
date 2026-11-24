@@ -220,6 +220,16 @@ export function createFetchHandler(handler, endpoint = 'scan') {
 
 /** DSH owns transport registration; unloading aborts and joins the plugin's scans. */
 export function apply(ctx) {
+  // A future DSH release may move or rename the Connection Fetch API. Stay inert
+  // with a clear log instead of throwing during activation and losing the plugin row.
+  if (typeof ctx?.effect !== 'function' || typeof ctx?.connection?.fetch?.register !== 'function') {
+    const message = 'workspace-monitor: this DSH release does not expose connection.fetch.register; the Host plugin stays inactive. Install a plugin release that supports this DSH version.';
+    try {
+      if (typeof ctx?.logger === 'function') ctx.logger('workspace-monitor').warn(message);
+      else console.warn(message);
+    } catch { console.warn(message); }
+    return;
+  }
   const lifetime = new AbortController();
   const pending = new Set();
   const runner = createTaskRunner();

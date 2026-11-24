@@ -84,6 +84,29 @@ test('plugin registers an addressable sidebar tab and routes scans through DSH C
   }
 });
 
+test('a changed sidebar tab API does not unregister the panel and hover preview', () => {
+  const names = [];
+  const failures = [];
+  const original = console.error;
+  console.error = (...args) => failures.push(args);
+  try {
+    apply({
+      effect: register => register(),
+      sidebarRightTabs: { register: () => { throw new Error('tab API changed'); } },
+      slots: {
+        inject: (_name, register) => { register(); return () => {}; },
+        register: value => { names.push(value.name); return () => {}; },
+      },
+      connection: { rpc: { call: () => Promise.resolve({ ok: true, value: {} }) } },
+    });
+  } finally {
+    console.error = original;
+  }
+  assert.deepEqual(names, ['sidebar.right.pane.tab', 'shell.overlay']);
+  assert.equal(failures.length, 1);
+  assert.match(String(failures[0][0]), /sidebar tab API/);
+});
+
 test('workspace preview limits commands, keeps full titles and shows remaining tasks', () => {
   const tasks = Array.from({ length: 7 }, (_, index) => ({ id: `task-${index}`, pid: 100 + index, command: `/usr/bin/node /project/server-${index}.mjs`, ports: index === 0 ? [{ protocol: 'tcp', address: '::', port: 5173 }] : [] }));
   const state = { target: { title: 'Demo', path: '/project' }, status: 'ready', snapshot: { tasks, warnings: [] } };
